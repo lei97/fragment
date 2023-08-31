@@ -3,6 +3,9 @@
 #include <exception>
 #include <type_traits>
 
+#define __SCOPE_EXIT_CONCATENATE_IMPL(s1, s2) s1##s2
+#define __SCOPE_EXIT_CONCATENATE(s1, s2) __SCOPE_EXIT_CONCATENATE_IMPL(s1, s2)
+
 namespace fragment {
 template <typename FUNC> class scoped_lambda {
 public:
@@ -102,4 +105,17 @@ template <typename FUNC> auto on_scope_failure(FUNC &&func) {
 template <typename FUNC> auto on_scope_success(FUNC &&func) {
   return conditional_scoped_lambda<FUNC, false>{std::forward<FUNC>(func)};
 }
+
+namespace detail {
+enum class ScopeExit {};
+
+template <typename Func>
+inline scoped_lambda<Func> operator+(ScopeExit, Func &&fn) {
+  return on_scope_exit(std::forward<Func>(fn));
+}
+}  // namespace detail
 } // namespace fragment
+
+#define ON_SCOPE_EXIT                                   \
+  auto __SCOPE_EXIT_CONCATENATE(exitBlock_, __LINE__) = \
+      fragment::detail::ScopeExit() + [&]()
